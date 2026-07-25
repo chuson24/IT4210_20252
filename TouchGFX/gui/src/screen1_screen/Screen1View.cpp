@@ -10,8 +10,12 @@ extern "C"
 namespace
 {
 const uint16_t HOLD_TICKS = 30;
-const uint16_t TAP_MOVEMENT_LIMIT = 8;
-const int16_t POINTER_GAIN = 2;
+const uint16_t MIN_TAP_TICKS = 3;
+const uint16_t MAX_TAP_TICKS = 18;
+const uint16_t TAP_MOVEMENT_LIMIT = 4;
+const int16_t POINTER_GAIN = 1;
+const uint8_t ANIMATION_START_RADIUS = 40;
+const uint8_t ANIMATION_RADIUS_STEP = 2;
 
 int8_t clampMouseDelta(int16_t value)
 {
@@ -32,8 +36,7 @@ Screen1View::Screen1View() :
     releaseAnimation(false),
     dragButtonDown(false),
     clickReleasePending(false),
-    animationStep(0),
-    tickCount(0),
+    animationRadius(0),
     requestedButtons(0),
     lastSentButtons(0),
     pressTicks(0),
@@ -99,14 +102,15 @@ void Screen1View::handleClickEvent(const touchgfx::ClickEvent& evt)
             requestedButtons = 0;
             dragButtonDown = false;
         }
-        else if (pressTicks < HOLD_TICKS && movementDistance <= TAP_MOVEMENT_LIMIT)
+        else if (pressTicks >= MIN_TAP_TICKS &&
+                 pressTicks <= MAX_TAP_TICKS &&
+                 movementDistance <= TAP_MOVEMENT_LIMIT)
         {
             requestedButtons = 1;
             clickReleasePending = true;
         }
         releaseAnimation = true;
-        animationStep = 1;
-        tickCount = 0;
+        animationRadius = ANIMATION_START_RADIUS;
         break;
 
     default:
@@ -132,7 +136,7 @@ void Screen1View::handleDragEvent(const touchgfx::DragEvent& evt)
                                                     (deltaY < 0 ? -deltaY : deltaY));
     if (movementDistance <= static_cast<uint16_t>(0xFFFF - distance))
     {
-    movementDistance += distance;
+        movementDistance += distance;
     }
     else
     {
@@ -172,43 +176,18 @@ void Screen1View::handleTickEvent()
         return;
     }
 
-    tickCount++;
-
-    if (tickCount < 6)
+    circle1.invalidate();
+    if (animationRadius <= ANIMATION_RADIUS_STEP)
     {
-        return;
-    }
-
-    tickCount = 0;
-
-    hideAllCircles();
-
-    switch(animationStep)
-    {
-    case 1:
-        circle1.setRadius(30);
-        circle1.setVisible(true);
-        circle1.invalidate();
-        break;
-
-    case 2:
-        circle1.setRadius(20);
-        circle1.setVisible(true);
-        circle1.invalidate();
-        break;
-
-    case 3:
-        circle1.setRadius(10);
-        circle1.setVisible(true);
-        circle1.invalidate();
-        break;
-
-    default:
+        circle1.setVisible(false);
         releaseAnimation = false;
         return;
     }
 
-    animationStep++;
+    animationRadius -= ANIMATION_RADIUS_STEP;
+    circle1.setRadius(animationRadius);
+    circle1.setVisible(true);
+    circle1.invalidate();
 }
 
 void Screen1View::queueMouseMovement(int16_t deltaX, int16_t deltaY)

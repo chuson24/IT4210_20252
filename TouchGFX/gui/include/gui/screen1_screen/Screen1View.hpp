@@ -26,8 +26,7 @@ private:
     bool releaseAnimation;
     bool dragButtonDown;
     bool clickReleasePending;
-    uint8_t animationStep;
-    uint8_t tickCount;
+    uint8_t animationRadius;
     uint8_t requestedButtons;
     uint8_t lastSentButtons;
     uint16_t pressTicks;

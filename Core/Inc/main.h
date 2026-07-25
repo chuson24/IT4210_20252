@@ -54,6 +54,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+uint8_t USB_Mouse_TrySend(uint8_t buttons, int8_t deltaX, int8_t deltaY);
 
 /* USER CODE END EFP */
 

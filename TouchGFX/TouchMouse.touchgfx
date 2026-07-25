@@ -3,7 +3,91 @@
     "Screens": [
       {
         "Name": "Screen1",
-        "Components": [],
+        "CanvasBufferSize": 3600,
+        "Components": [
+          {
+            "Type": "Box",
+            "Name": "box1",
+            "Width": 240,
+            "Height": 320
+          },
+          {
+            "Type": "Circle",
+            "Name": "circle4",
+            "X": 47,
+            "Y": 212,
+            "Width": 80,
+            "Height": 80,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "CenterX": 40.0,
+            "CenterY": 40.0,
+            "Radius": 10.0,
+            "EndAngle": 360.0,
+            "CapPrecision": "Butt"
+          },
+          {
+            "Type": "Circle",
+            "Name": "circle1",
+            "X": 64,
+            "Y": 22,
+            "Width": 80,
+            "Height": 80,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "CenterX": 40.0,
+            "CenterY": 40.0,
+            "Radius": 40.0,
+            "EndAngle": 360.0,
+            "CapPrecision": "Butt"
+          },
+          {
+            "Type": "Circle",
+            "Name": "circle3",
+            "X": 144,
+            "Y": 212,
+            "Width": 80,
+            "Height": 80,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "CenterX": 40.0,
+            "CenterY": 40.0,
+            "Radius": 20.0,
+            "EndAngle": 360.0,
+            "CapPrecision": "Butt"
+          },
+          {
+            "Type": "Circle",
+            "Name": "circle2",
+            "X": 64,
+            "Y": 120,
+            "Width": 80,
+            "Height": 80,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "CenterX": 40.0,
+            "CenterY": 40.0,
+            "Radius": 30.0,
+            "EndAngle": 360.0,
+            "CapPrecision": "Butt"
+          }
+        ],
         "Interactions": []
       }
     ],

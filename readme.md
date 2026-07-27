@@ -393,9 +393,9 @@ Nhấn vào hình bên dưới để xem video demo trên YouTube:
 
 | STT | Họ và tên | MSSV | Phân công |
 |---:|---|---:|---|
-| 1 | Chu Đình Sơn | 20215636 | Code |
-| 2 | Ngô Quang Vinh | 20215666 | Viết báo cáo |
-| 3 | Nguyễn Đức Minh | 20225885 | Viết báo cáo |
+| 1 | Chu Đình Sơn | 20215636 | Xây dựng toàn bộ logic touchpad (nhận dạng tap, hold, drag-and-drop; tính chuyển động tương đối); tích hợp và gửi HID report qua USB |
+| 2 | Ngô Quang Vinh | 20215666 | Cấu hình clock, khởi tạo các ngoại vi (I2C, SPI, SDRAM, LTDC, DMA2D); viết glue code kết nối HAL với driver LCD và cảm ứng; phát hiện phiên bản phần cứng kit; viết báo cáo |
+| 3 | Nguyễn Đức Minh | 20225885 | Thiết kế giao diện TouchGFX; lập trình driver đọc và hiệu chỉnh tọa độ cảm ứng STMPE811; thực hiện kiểm thử |
 
 
 ## 13. Tài liệu trong dự án

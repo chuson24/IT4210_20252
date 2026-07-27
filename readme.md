@@ -13,8 +13,8 @@ STM32F429I-DISC1 và kết nối với máy tính.*
 
 Dự án xây dựng một **bàn di chuột (touchpad) USB HID** từ kit
 **STM32F429I-DISC1**. Người dùng thao tác trên màn hình cảm ứng của kit để
-điều khiển con trỏ chuột trên máy tính. Giao diện được phát triển bằng
-**TouchGFX**, các tác vụ chạy trên **FreeRTOS**, còn dữ liệu dịch chuyển chuột
+điều khiển con trỏ và thực hiện click chuột trên máy tính. Giao diện được phát
+triển bằng **TouchGFX**, các tác vụ chạy trên **FreeRTOS**, còn dữ liệu chuột
 được truyền qua cổng **USB OTG HS ở chế độ Device/Full Speed**.
 
 Máy tính nhận thiết bị như một chuột USB HID tiêu chuẩn nên không cần cài
@@ -23,14 +23,12 @@ driver riêng.
 ### Chức năng chính
 
 - Kéo ngón tay trên màn hình để di chuyển con trỏ theo độ dịch chuyển tương đối.
+- Chạm ngắn rồi thả để thực hiện một lần click chuột trái.
+- Nhấn giữ rồi kéo để thực hiện thao tác giữ chuột trái (drag-and-drop).
 - Hiển thị vòng tròn tại vị trí chạm và tạo hiệu ứng co dần khi thả tay.
 - Tích lũy chuyển động trong khoảng `-1024..1024` và chia thành nhiều HID
   report; độ dịch chuyển của mỗi report được giới hạn trong `-127..127`.
 - Kiểm tra trạng thái USB trước khi gửi để không ghi đè report đang được truyền.
-
-Phiên bản được trình bày trong báo cáo chỉ xác nhận chức năng **di chuyển con
-trỏ chuột**. Các chức năng nút chuột như click trái, click phải, kéo-thả và cuộn
-chưa thuộc phạm vi chức năng của sản phẩm.
 
 ---
 
@@ -184,7 +182,30 @@ cho các tick tiếp theo. Cơ chế này cho phép truyền tuần tự chuyể
 lũy mà vẫn bảo đảm từng HID report đúng miền giá trị của trường `int8_t`. Nếu
 tổng chuyển động chờ vượt quá `±1024`, giá trị sẽ được giới hạn tại ngưỡng này.
 
-### 5.4. Hiệu ứng phản hồi
+### 5.4. Nhận dạng thao tác click và kéo-thả
+
+Các ngưỡng được định nghĩa trong `Screen1View.cpp`:
+
+| Hằng số | Giá trị | Ý nghĩa |
+|---|---:|---|
+| `MIN_TAP_TICKS` | 3 | Thời gian chạm tối thiểu để nhận là tap |
+| `MAX_TAP_TICKS` | 18 | Thời gian chạm tối đa để nhận là tap |
+| `HOLD_TICKS` | 30 | Thời gian giữ để nhấn giữ nút trái |
+| `TAP_MOVEMENT_LIMIT` | 4 | Tổng dịch chuyển tối đa vẫn được xem là chạm tại chỗ |
+| `POINTER_GAIN` | 1 | Hệ số nhân độ dịch chuyển con trỏ |
+
+Các giá trị thời gian trên được tính theo tick của TouchGFX, không phải mili
+giây cố định.
+
+- **Tap:** thả tay trong khoảng 3–18 tick và tổng quãng đường không quá 4 pixel.
+  Firmware gửi report nhấn nút trái, sau đó tự gửi report nhả nút ở tick kế tiếp.
+- **Giữ:** giữ ít nhất 30 tick và không di chuyển quá 4 pixel để đặt nút trái
+  ở trạng thái nhấn.
+- **Kéo-thả:** sau khi trạng thái giữ được kích hoạt, người dùng kéo ngón tay
+  để di chuyển con trỏ trong khi nút trái vẫn được nhấn; thả tay sẽ gửi trạng
+  thái nhả nút.
+
+### 5.5. Hiệu ứng phản hồi
 
 Khi bắt đầu chạm, `circle1` được đặt tại vị trí ngón tay với bán kính 40 pixel.
 Vòng tròn đi theo ngón tay trong lúc kéo. Sau khi thả:
@@ -196,13 +217,13 @@ Vòng tròn đi theo ngón tay trong lúc kéo. Sau khi thả:
 Các lần gọi `invalidate()` trước và sau khi thay đổi vị trí/kích thước yêu cầu
 TouchGFX vẽ lại cả vùng cũ lẫn vùng mới, tránh để lại vệt trên màn hình.
 
-### 5.5. Giao tiếp USB HID
+### 5.6. Giao tiếp USB HID
 
 `USB_Mouse_TrySend()` tạo report chuột gồm 4 byte:
 
 | Byte | Nội dung |
 |---:|---|
-| 0 | Trạng thái nút chuột; phạm vi báo cáo không sử dụng chức năng nút |
+| 0 | Các bit trạng thái nút chuột; bit 0 là nút trái |
 | 1 | Dịch chuyển X tương đối, kiểu `int8_t` |
 | 2 | Dịch chuyển Y tương đối, kiểu `int8_t` |
 | 3 | Con lăn; dự án hiện gửi giá trị 0 |
@@ -223,9 +244,9 @@ chờ và sẽ thử lại ở tick sau. Đây là cơ chế gửi không chặn
 
 ### `Screen1View::handleClickEvent(const touchgfx::ClickEvent& evt)`
 
-Nhận sự kiện bắt đầu/kết thúc chạm từ TouchGFX để hiển thị vòng tròn phản hồi
-trên LCD. Đây là sự kiện chạm của giao diện, không được mô tả như một chức năng
-click chuột của sản phẩm.
+Nhận sự kiện nhấn/thả từ TouchGFX. Khi nhấn, hàm lưu tọa độ ban đầu, đặt lại bộ
+đếm và hiển thị vòng tròn. Khi thả, hàm quyết định gửi click, nhả thao tác kéo
+hoặc chỉ chạy hiệu ứng tùy thời gian và quãng đường đã chạm.
 
 ### `Screen1View::handleDragEvent(const touchgfx::DragEvent& evt)`
 
@@ -234,8 +255,8 @@ Tính độ dịch chuyển giữa hai mẫu cảm ứng liên tiếp, cộng v�
 
 ### `Screen1View::handleTickEvent()`
 
-Phục vụ dữ liệu dịch chuyển đang chờ gửi qua USB và chạy hiệu ứng thu nhỏ vòng
-tròn.
+Cập nhật thời gian nhấn, nhận dạng nhấn giữ, phục vụ hàng đợi USB và chạy hiệu
+ứng thu nhỏ vòng tròn.
 
 ### `Screen1View::queueMouseMovement(int16_t deltaX, int16_t deltaY)`
 
@@ -245,7 +266,8 @@ bằng cách giới hạn từng trục trong khoảng `-1024..1024`.
 ### `Screen1View::serviceUsbMouse()`
 
 Chuyển dữ liệu đang chờ thành report hợp lệ, thử gửi qua USB và chỉ trừ phần
-dịch chuyển sau khi gửi thành công.
+dịch chuyển sau khi gửi thành công. Hàm cũng tạo report nhả nút sau một lần
+click.
 
 ### `USB_Mouse_TrySend(uint8_t buttons, int8_t deltaX, int8_t deltaY)`
 
@@ -301,6 +323,8 @@ cấu hình trong môi trường.
 2. Nối cổng USB USER/OTG của kit với máy tính.
 3. Chờ hệ điều hành nhận thiết bị **STM32 Human interface**.
 4. Kéo trên màn hình cảm ứng để di chuột.
+5. Chạm ngắn để click trái.
+6. Nhấn giữ tại chỗ, sau đó kéo và thả để thực hiện drag-and-drop.
 
 ---
 
@@ -311,6 +335,9 @@ cấu hình trong môi trường.
 | Cắm USB sau khi firmware đã chạy | Máy tính nhận một chuột HID, không cần driver riêng |
 | Kéo chậm theo bốn hướng | Con trỏ di chuyển đúng hướng và tương đối mượt |
 | Kéo nhanh/quãng đường lớn | Chuyển động được gửi qua nhiều report, không vượt quá ±127 mỗi report |
+| Chạm ngắn tại chỗ | Phát sinh đúng một click trái |
+| Giữ tại chỗ rồi kéo | Đối tượng trên máy tính được kéo theo con trỏ |
+| Thả sau thao tác giữ | Nút trái được nhả |
 | Chạm khi chưa nối USB | Giao diện vẫn hoạt động, firmware không bị treo |
 | Nhấn/thả và kéo vòng tròn | Không còn vệt đồ họa tại vị trí cũ |
 
@@ -318,12 +345,13 @@ cấu hình trong môi trường.
 
 ## 9. Hạn chế và hướng phát triển
 
-- Sản phẩm hiện chỉ hỗ trợ di chuyển con trỏ; chưa hỗ trợ click trái, click
-  phải, click giữa, kéo-thả và cuộn.
+- Hiện chỉ sử dụng nút chuột trái; chưa có click phải, click giữa và cuộn.
 - `POINTER_GAIN` đang cố định bằng 1, chưa có giao diện chỉnh độ nhạy.
+- Các ngưỡng tap/hold tính theo tick nên thay đổi tần số tick có thể làm thay
+  đổi cảm giác thao tác.
 - Hàng đợi chuyển động chỉ lưu tổng theo hai trục, chưa phải queue nhiều sự kiện.
-- Có thể bổ sung click, kéo-thả, cuộn hai ngón, tăng tốc con trỏ và hiệu chuẩn
-  cảm ứng trong giao diện.
+- Có thể bổ sung double-click, cuộn hai ngón, tăng tốc con trỏ và hiệu chuẩn cảm
+  ứng trong giao diện.
 
 ---
 
@@ -349,8 +377,9 @@ Video nên minh họa lần lượt các thao tác:
 
 1. Kết nối kit với máy tính và máy tính nhận chuột HID.
 2. Kéo ngón tay để di chuyển con trỏ.
-3. Thử di chuyển con trỏ theo bốn hướng với tốc độ khác nhau.
-4. Hiệu ứng vòng tròn trên màn hình khi chạm, kéo và thả tay.
+3. Chạm ngắn để click chuột trái.
+4. Nhấn giữ rồi kéo để thực hiện drag-and-drop.
+5. Hiệu ứng vòng tròn trên màn hình khi chạm và thả tay.
 
 Nhấn vào hình bên dưới để xem video demo trên YouTube:
 
@@ -364,7 +393,7 @@ Nhấn vào hình bên dưới để xem video demo trên YouTube:
 
 | STT | Họ và tên | MSSV | Phân công |
 |---:|---|---:|---|
-| 1 | Chu Đình Sơn | 20215636 | Xây dựng logic touchpad: tính chuyển động tương đối, tích lũy và giới hạn độ dịch chuyển; đóng gói và gửi HID report qua USB |
+| 1 | Chu Đình Sơn | 20215636 | Xây dựng logic touchpad: nhận dạng tap, hold và drag-and-drop; tính chuyển động tương đối, tích lũy và giới hạn độ dịch chuyển; đóng gói và gửi HID report qua USB |
 | 2 | Ngô Quang Vinh | 20215666 | Cấu hình clock; khởi tạo I2C, SPI, SDRAM, LTDC, DMA2D; viết glue code HAL–LCD/cảm ứng; nhận diện revision kit; viết báo cáo |
 | 3 | Nguyễn Đức Minh | 20225885 | Thiết kế giao diện TouchGFX; đọc, hiệu chỉnh và lọc tọa độ cảm ứng STMPE811; kiểm thử chức năng di chuyển con trỏ |
 

@@ -53,7 +53,21 @@ USBD_HandleTypeDef hUsbDeviceHS;
  * -- Insert your external function declaration here --
  */
 /* USER CODE BEGIN 1 */
-uint8_t USB_Mouse_TrySend(uint8_t buttons, int8_t deltaX, int8_t deltaY)
+
+/**
+ * @brief  Send a standard 4-byte HID mouse report.
+ *
+ * The report layout follows the USB HID boot-protocol mouse descriptor:
+ *   Byte 0 – button bitmask  (bit 0 = left, bit 1 = right, bit 2 = middle)
+ *   Byte 1 – relative X      (int8_t, -127..127)
+ *   Byte 2 – relative Y      (int8_t, -127..127)
+ *   Byte 3 – scroll wheel    (int8_t, positive = scroll down / away from user)
+ *
+ * The function is non-blocking: it checks that the HID endpoint is idle before
+ * queueing the report.  Returns 0 immediately when USB is not yet configured or
+ * the endpoint is busy so callers can retry on the next tick.
+ */
+uint8_t USB_Mouse_TrySend(uint8_t buttons, int8_t deltaX, int8_t deltaY, int8_t scroll)
 {
   USBD_HID_HandleTypeDef *hid;
   uint8_t report[4];
@@ -72,7 +86,7 @@ uint8_t USB_Mouse_TrySend(uint8_t buttons, int8_t deltaX, int8_t deltaY)
   report[0] = buttons;
   report[1] = (uint8_t)deltaX;
   report[2] = (uint8_t)deltaY;
-  report[3] = 0;
+  report[3] = (uint8_t)scroll;  /* Scroll wheel — was always 0 before */
 
   (void)USBD_HID_SendReport(&hUsbDeviceHS, report, sizeof(report));
   return 1;

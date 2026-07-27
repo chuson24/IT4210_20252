@@ -764,8 +764,10 @@ static void I2C3_WriteData(uint8_t Addr, uint8_t Reg, uint8_t Value)
   /* Check the communication status */
   if(status != HAL_OK)
   {
-    /* Re-Initialize the BUS */
-    //I2Cx_Error();
+    /* I2C write failed (bus busy, NACK or timeout).
+     * Touch input may be temporarily unavailable.
+     * A full recovery would call: HAL_I2C_DeInit(&hi2c3); MX_I2C3_Init();
+     * This is intentionally non-fatal so the GUI keeps running. */
   }
 }
 
@@ -785,9 +787,11 @@ static uint8_t I2C3_ReadData(uint8_t Addr, uint8_t Reg)
   /* Check the communication status */
   if(status != HAL_OK)
   {
-    /* Re-Initialize the BUS */
-    //I2Cx_Error();
-
+    /* I2C read failed (bus busy, NACK or timeout).
+     * Returns 0 as a safe default so callers do not act on stale data.
+     * A full recovery would call: HAL_I2C_DeInit(&hi2c3); MX_I2C3_Init();
+     * This is intentionally non-fatal so the GUI keeps running. */
+    value = 0;
   }
   return value;
 }

@@ -345,13 +345,19 @@ cấu hình trong môi trường.
 
 ## 9. Hạn chế và hướng phát triển
 
-- Hiện chỉ sử dụng nút chuột trái; chưa có click phải, click giữa và cuộn.
-- `POINTER_GAIN` đang cố định bằng 1, chưa có giao diện chỉnh độ nhạy.
+**Đã cải thiện:**
+- ✅ Scroll wheel đã hoạt động — vuốt trong dải 30 px bên phải màn hình để cuộn trang.
+- ✅ Tăng tốc con trỏ — tốc độ ngón tay nhanh → hệ số nhân lớn hơn (1×/2×/3×).
+- ✅ Con trỏ không còn nhảy khi chạm lại sau khi nhả (bộ lọc cảm ứng đã sửa).
+- ✅ Byte scroll trong HID report được sử dụng thay vì luôn bằng 0.
+
+**Còn hạn chế:**
+- Chưa có click phải, click giữa (STMPE811 là single-touch, không phân biệt được
+  ngón tay thứ hai).
+- `pointerGain` chưa có giao diện chỉnh trong TouchGFX; hiện cố định bằng 1.
 - Các ngưỡng tap/hold tính theo tick nên thay đổi tần số tick có thể làm thay
   đổi cảm giác thao tác.
-- Hàng đợi chuyển động chỉ lưu tổng theo hai trục, chưa phải queue nhiều sự kiện.
-- Có thể bổ sung double-click, cuộn hai ngón, tăng tốc con trỏ và hiệu chuẩn cảm
-  ứng trong giao diện.
+- Có thể bổ sung double-click và hiệu chuẩn cảm ứng ngay trong giao diện.
 
 ---
 
@@ -407,3 +413,33 @@ Nhấn vào hình bên dưới để xem video demo trên YouTube:
 - `TouchGFX/target/STM32TouchController.cpp`: driver và hiệu chỉnh cảm ứng.
 - `USB_DEVICE/App/usb_device.c`: khởi tạo và gửi report USB HID.
 - `Middlewares/ST/STM32_USB_Device_Library/Class/HID/`: descriptor và lớp HID.
+
+---
+
+## 14. Nhật ký cải thiện
+
+### Cải tiến thực hiện sau khi nộp
+
+#### Bug Fixes
+
+| File | Vấn đề | Giải pháp |
+|------|--------|----------|
+| `Screen1View.hpp` | `animationRadius` là `uint8_t` — có thể wrap xuống 255 khi về 0 | Đổi sang `int16_t`, kiểm tra `<= ANIMATION_RADIUS_STEP` |
+| `STM32TouchController.cpp` | Bộ lọc jitter dùng `static _x, _y` không reset giữa các lần chạm — con trỏ nhảy khi chạm lại | Thêm `prevTouchDetected`; trên rising edge, cập nhật trực tiếp không qua filter |
+| `main.c` | Lỗi I2C bị bỏ qua hoàn toàn (code `I2Cx_Error()` bị comment out) | Thêm comment giải thích hành vi và hướng recovery |
+| `Screen1View.cpp` | `hideAllCircles()` lặp qua 4 circles trong khi chỉ dùng `circle1` | Đơn giản hoá, chỉ xử lý `circle1` |
+| `usb_device.h` | Thiếu prototype `USB_Mouse_TrySend` — implicit declaration trong C++ | Thêm prototype đầy đủ với Doxygen comment |
+
+#### Tính năng mới
+
+| Tính năng | Mô tả | File |
+|-----------|-------|------|
+| **Scroll wheel** | Byte 3 của HID report (scroll) được sử dụng thay vì luôn bằng 0 | `usb_device.c`, `usb_device.h` |
+| **Scroll zone** | Vuốt trong dải 30 px bên phải màn hình để cuộn trang lên/xuống | `Screen1View.cpp`, `Screen1View.hpp` |
+| **Pointer acceleration** | Tốc độ ngón tay nhanh (>10 px/tick) nhân ×2, rất nhanh (>20 px/tick) nhân ×3 | `Screen1View.cpp` |
+
+#### Code quality
+
+- `STM32TouchController.cpp`: thêm Doxygen block giải thích toàn bộ magic number ADC (3700, 180, 3520, 360, 11, 3870, 3000, 3800, 15, 5).
+- `Screen1View.cpp`: thêm comment giải thích tại sao clamp về −127..127 thay vì −128..127.
+- `usb_device.c`: thêm Doxygen comment cho `USB_Mouse_TrySend` mô tả từng byte trong HID report.

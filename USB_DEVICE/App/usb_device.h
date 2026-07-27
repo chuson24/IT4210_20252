@@ -82,6 +82,16 @@ void MX_USB_DEVICE_Init(void);
  */
 /* USER CODE BEGIN FD */
 
+/**
+ * @brief  Attempt to send a mouse HID report to the host.
+ * @param  buttons   Bitmask of button states (bit 0 = left, bit 1 = right, bit 2 = middle).
+ * @param  deltaX    Relative X movement in the range -127..127.
+ * @param  deltaY    Relative Y movement in the range -127..127.
+ * @param  scroll    Scroll wheel delta in the range -127..127 (positive = scroll down).
+ * @retval 1 if the report was accepted for transmission, 0 if USB is busy or not configured.
+ */
+uint8_t USB_Mouse_TrySend(uint8_t buttons, int8_t deltaX, int8_t deltaY, int8_t scroll);
+
 /* USER CODE END FD */
 /**
   * @}

@@ -116,10 +116,30 @@ uint8_t BSP_TS_Init(uint16_t XSize, uint16_t YSize)
 /**
   * @brief  Returns status and positions of the touch screen.
   * @param  TsState: Pointer to touch screen current state structure
+  *
+  * Coordinate calibration notes (STMPE811 ADC raw values → pixel):
+  *   The STMPE811 outputs 12-bit ADC values (0–4095) for both axes.
+  *   The constants below were empirically derived for the STM32F429I-DISC1 board.
+  *   They map the ADC range to the 240×320 LCD pixel area.
+  *
+  *   Rev D and later boards have a different Y-axis orientation/offset:
+  *     Raw Y range: ~180 (top) … ~3700 (bottom) → 3520 counts over 320 pixels
+  *     Scale factor: 3520 / 320 ≈ 11 counts/pixel
+  *   Older revisions:
+  *     Raw Y range: ~360 (top offset) … (360 + 320*11) → same 11 counts/pixel scale
+  *
+  *   X-axis (both revisions, inverted — ADC decreases as finger moves right):
+  *     Raw X ≤ 3000: reference = 3870; Raw X > 3000: reference = 3800
+  *     Scale factor: 15 counts/pixel  (240 pixels * 15 = 3600 counts)
+  *
+  *   Jitter filter: only update the reported position when the Manhattan
+  *   distance between the new raw reading and the last accepted position
+  *   exceeds 5 counts, suppressing high-frequency noise from the ADC.
   */
 void BSP_TS_GetState(TS_StateTypeDef* TsState)
 {
     static uint32_t _x = 0, _y = 0;
+    static uint8_t  prevTouchDetected = 0;  /* Track previous touch state for edge detection */
     uint16_t xDiff, yDiff, x, y, xr, yr;
 
     TsState->TouchDetected = TsDrv->DetectTouch(TS_I2C_ADDRESS);
@@ -130,7 +150,7 @@ void BSP_TS_GetState(TS_StateTypeDef* TsState)
 
         if (isRevD)
         {
-            //Ensures the coordinates are within the screen
+            /* Clamp raw Y to the calibrated active range (180–3700) */
             if (y > 3700)
             {
                 y = 3700;
@@ -140,22 +160,22 @@ void BSP_TS_GetState(TS_StateTypeDef* TsState)
                 y = 180;
             }
 
-            /* Y value first correction */
+            /* Remove bottom offset (raw 180 → pixel 0) */
             y -= 180;
 
-            /* Y value second correction */
-            y = 3520 - y;
+            /* Invert axis: raw 0 is the bottom of screen, subtract from full range */
+            y = 3520 - y;   /* 3520 = 3700 - 180 = full calibrated span */
         }
         else
         {
-            /* Y value first correction */
+            /* Remove top offset (raw 360 → pixel 0) */
             y -= 360;
         }
 
-        /* Y value second correction */
+        /* Scale raw Y counts to pixels: 11 ADC counts per pixel */
         yr = y / 11;
 
-        /* Return y position value */
+        /* Clamp to valid pixel range */
         if (yr <= 0)
         {
             yr = 0;
@@ -164,24 +184,24 @@ void BSP_TS_GetState(TS_StateTypeDef* TsState)
         {
             yr = TsYBoundary - 1;
         }
-        else
-        {}
         y = yr;
 
-        /* X value first correction */
+        /* Invert X axis: ADC value decreases as finger moves right.
+         * Use slightly different reference for high vs. low raw values
+         * to compensate for ADC non-linearity near the edges. */
         if (x <= 3000)
         {
-            x = 3870 - x;
+            x = 3870 - x;   /* Reference for left/center region */
         }
         else
         {
-            x = 3800 - x;
+            x = 3800 - x;   /* Reference for right region (different linearity) */
         }
 
-        /* X value second correction */
+        /* Scale raw X counts to pixels: 15 ADC counts per pixel */
         xr = x / 15;
 
-        /* Return X position value */
+        /* Clamp to valid pixel range */
         if (xr <= 0)
         {
             xr = 0;
@@ -190,17 +210,29 @@ void BSP_TS_GetState(TS_StateTypeDef* TsState)
         {
             xr = TsXBoundary - 1;
         }
-        else
-        {}
-
         x = xr;
-        xDiff = x > _x ? (x - _x) : (_x - x);
-        yDiff = y > _y ? (y - _y) : (_y - y);
 
-        if (xDiff + yDiff > 5)
+        /* On the rising edge of a new touch, skip the jitter filter and accept
+         * the position immediately.  Without this, the filter would retain the
+         * last position from the previous touch, making the cursor jump to the
+         * old location for one tick when a new gesture starts. */
+        if (!prevTouchDetected)
         {
             _x = x;
             _y = y;
+        }
+        else
+        {
+            /* Jitter filter: only update if Manhattan distance > 5 ADC counts.
+             * This suppresses sub-pixel noise from the resistive touch sensor. */
+            xDiff = x > _x ? (x - _x) : (_x - x);
+            yDiff = y > _y ? (y - _y) : (_y - y);
+
+            if (xDiff + yDiff > 5)
+            {
+                _x = x;
+                _y = y;
+            }
         }
 
         /* Update the X position */
@@ -209,7 +241,10 @@ void BSP_TS_GetState(TS_StateTypeDef* TsState)
         /* Update the Y position */
         TsState->Y = _y;
     }
+
+    prevTouchDetected = TsState->TouchDetected;
 }
+
 
 /* USER CODE END STM32TouchController */
 

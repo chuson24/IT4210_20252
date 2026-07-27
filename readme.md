@@ -383,9 +383,9 @@ Video nên minh họa lần lượt các thao tác:
 
 Nhấn vào hình bên dưới để xem video demo trên YouTube:
 
-[![Video demo touchpad USB HID trên STM32F429I-DISC1](https://img.youtube.com/vi/VjN5zoR5IaE/hqdefault.jpg)](https://youtube.com/shorts/VjN5zoR5IaE?feature=share)
+[![Video demo touchpad USB HID trên STM32F429I-DISC1](https://img.youtube.com/vi/K-3LKoMA0Do/hqdefault.jpg)](https://youtube.com/shorts/K-3LKoMA0Do?feature=share)
 
-**Liên kết video:** [Touchpad USB HID trên STM32F429I-DISC1 – YouTube Shorts](https://youtube.com/shorts/VjN5zoR5IaE?feature=share)
+**Liên kết video:** [Touchpad USB HID trên STM32F429I-DISC1 – YouTube Shorts](https://youtube.com/shorts/K-3LKoMA0Do?feature=share)
 
 ---
 
